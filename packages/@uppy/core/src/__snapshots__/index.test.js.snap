@@ -18,7 +18,7 @@ Object {
     Object {
       "data": Uint8Array [],
       "extension": "jpg",
-      "id": "uppy-foojpg-image/jpeg",
+      "id": "uppy-foo/jpg-1e-image/jpeg",
       "isRemote": false,
       "meta": Object {
         "name": "foo.jpg",
@@ -31,7 +31,7 @@ Object {
         "bytesUploaded": 0,
         "percentage": 0,
         "uploadComplete": false,
-        "uploadStarted": false,
+        "uploadStarted": null,
       },
       "remote": "",
       "size": null,
@@ -41,7 +41,7 @@ Object {
     Object {
       "data": Uint8Array [],
       "extension": "jpg",
-      "id": "uppy-barjpg-image/jpeg",
+      "id": "uppy-bar/jpg-1e-image/jpeg",
       "isRemote": false,
       "meta": Object {
         "name": "bar.jpg",
@@ -54,7 +54,7 @@ Object {
         "bytesUploaded": 0,
         "percentage": 0,
         "uploadComplete": false,
-        "uploadStarted": false,
+        "uploadStarted": null,
       },
       "remote": "",
       "size": null,

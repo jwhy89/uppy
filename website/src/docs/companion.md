@@ -6,6 +6,7 @@ module: "@uppy/companion"
 permalink: docs/companion/
 alias: docs/server/
 category: 'Docs'
+tagline: Server-side proxy that enables remote sources like Instagram, Google Drive, S3
 ---
 
 > Companion was previously known as Uppy Server. It was renamed in v0.14.0.
@@ -35,6 +36,8 @@ npm install @uppy/companion
 ```
 
 If you don't have a Node.js project with a `package.json` you might want to install/run Companion globally like so: `[sudo] npm install -g @uppy/companion@0.30.0`.
+
+Unfortunately, Windows is not a supported platform right now. It may work, and we're happy to accept improvements in this area, but we can't provide assistance.
 
 ## Usage
 
@@ -121,6 +124,8 @@ To run Companion as a standalone server, you are required to set your Uppy [Opti
 
 # any long set of random characters for the server session
 export COMPANION_SECRET="shh!Issa Secret!"
+# specifying a secret file will override a directly set secret
+export COMPANION_SECRET_FILE="PATH/TO/COMPANION/SECRET/FILE"
 # corresponds to the server.host option
 export COMPANION_DOMAIN="YOUR SERVER DOMAIN"
 # corresponds to the filePath option
@@ -151,18 +156,26 @@ export COMPANION_REDIS_URL="REDIS URL"
 # to enable Dropbox
 export COMPANION_DROPBOX_KEY="YOUR DROPBOX KEY"
 export COMPANION_DROPBOX_SECRET="YOUR DROPBOX SECRET"
+# specifying a secret file will override a directly set secret
+export COMPANION_DROPBOX_SECRET_FILE="PATH/TO/DROPBOX/SECRET/FILE"
 
 # to enable Google Drive
 export COMPANION_GOOGLE_KEY="YOUR GOOGLE KEY"
 export COMPANION_GOOGLE_SECRET="YOUR GOOGLE SECRET"
+# specifying a secret file will override a directly set secret
+export COMPANION_GOOGLE_SECRET_FILE="PATH/TO/GOOGLE/SECRET/FILE"
 
 # to enable Instagram
 export COMPANION_INSTAGRAM_KEY="YOUR INSTAGRAM KEY"
 export COMPANION_INSTAGRAM_SECRET="YOUR INSTAGRAM SECRET"
+# specifying a secret file will override a directly set secret
+export COMPANION_INSTAGRAM_SECRET_FILE="PATH/TO/INSTAGRAM/SECRET/FILE"
 
 # to enable S3
 export COMPANION_AWS_KEY="YOUR AWS KEY"
 export COMPANION_AWS_SECRET="YOUR AWS SECRET"
+# specifying a secret file will override a directly set secret
+export COMPANION_AWS_SECRET_FILE="PATH/TO/AWS/SECRET/FILE"
 export COMPANION_AWS_BUCKET="YOUR AWS S3 BUCKET"
 export COMPANION_AWS_REGION="AWS REGION"
 
@@ -279,7 +292,7 @@ let options = {
                 access_url: "https://mywebsite.com/token",
                 oauth: 2,
                 key: "***",
-                secret: "**",
+                secret: "***",
                 scope: ["read", "write"]
             },
             module: require('/path/to/provider/module')
@@ -333,3 +346,22 @@ This would get the Companion instance running on `http://localhost:3020`. It use
 ## Live example
 
 An example server is running at https://companion.uppy.io, which is deployed with [Kubernetes](https://github.com/transloadit/uppy/blob/master/packages/%40uppy/companion/KUBERNETES.md)
+
+
+## How the Authentication and Token mechanism works
+
+This section describes how Authentication works between Companion and Providers. While this behaviour is the same for all Providers (Dropbox, Instagram, Google Drive), we are going to be referring to Dropbox in place of any Provider throughout this section.
+
+The following steps describe the actions that take place when a user Authenticates and Uploads from Dropbox through Companion:
+
+- The visitor to a website with Uppy clicks "Connect to Dropbox".
+- Uppy sends a request to Companion, which in turn sends an OAuth request to Dropbox (Requires that OAuth credentials from Dropbox have been added to Companion).
+- Dropbox asks the visitor to log in, and whether the Website should be allowed to access your files
+- If the visitor agrees, Companion will receive a token from Dropbox, with which we can temporarily download files.
+- Companion encrypts the token with a secret key and sends the encrypted token to Uppy (client)
+- Every time the visitor clicks on a folder in Uppy, it asks Companion for the new list of files, with this question, the token (still encrypted by Companion) is sent along.
+- Companion decrypts the token, requests the list of files from Dropbox and sends it to Uppy.
+- When a file is selected for upload, Companion receives the token again according to this procedure, decrypts it again, and thereby downloads the file from Dropbox.
+- As the bytes arrive, Companion uploads the bytes to the final destination (depending on the configuration: Apache, a Tus server, S3 bucket, etc).
+- Companion reports progress to Uppy, as if it were a local upload.
+- Completed!

@@ -1,6 +1,7 @@
 ---
 title: "&lt;Dashboard />"
 type: docs
+module: "@uppy/react"
 permalink: docs/react/dashboard/
 order: 4
 category: 'React'
@@ -17,7 +18,9 @@ npm install @uppy/react
 ```
 
 ```js
+// Either:
 import Dashboard from '@uppy/react/lib/Dashboard'
+// Or:
 import { Dashboard } from '@uppy/react'
 ```
 

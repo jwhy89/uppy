@@ -23,52 +23,65 @@ exports.getUppyOptions = () => {
  * @returns {object}
  */
 const getConfigFromEnv = () => {
-  const uploadUrls = process.env.COMPANION_UPLOAD_URLS || process.env.UPPYSERVER_UPLOAD_URLS
-  const domains = process.env.COMPANION_DOMAINS || process.env.COMPANION_DOMAIN || process.env.UPPYSERVER_DOMAINS || process.env.UPPYSERVER_DOMAIN || null
+  const uploadUrls = process.env.COMPANION_UPLOAD_URLS
+  const domains = process.env.COMPANION_DOMAINS || process.env.COMPANION_DOMAIN || null
   const validHosts = domains ? domains.split(',') : []
 
   return {
-    // TODO: Rename providerOptions to providers.
     providerOptions: {
       google: {
-        key: process.env.COMPANION_GOOGLE_KEY || process.env.UPPYSERVER_GOOGLE_KEY,
-        secret: process.env.COMPANION_GOOGLE_SECRET || process.env.UPPYSERVER_GOOGLE_SECRET
+        key: process.env.COMPANION_GOOGLE_KEY,
+        secret: getSecret('COMPANION_GOOGLE_SECRET')
       },
       dropbox: {
-        key: process.env.COMPANION_DROPBOX_KEY || process.env.UPPYSERVER_DROPBOX_KEY,
-        secret: process.env.COMPANION_DROPBOX_SECRET || process.env.UPPYSERVER_DROPBOX_SECRET
+        key: process.env.COMPANION_DROPBOX_KEY,
+        secret: getSecret('COMPANION_DROPBOX_SECRET')
       },
       instagram: {
-        key: process.env.COMPANION_INSTAGRAM_KEY || process.env.UPPYSERVER_INSTAGRAM_KEY,
-        secret: process.env.COMPANION_INSTAGRAM_SECRET || process.env.UPPYSERVER_INSTAGRAM_SECRET
+        key: process.env.COMPANION_INSTAGRAM_KEY,
+        secret: getSecret('COMPANION_INSTAGRAM_SECRET')
       },
       s3: {
-        key: process.env.COMPANION_AWS_KEY || process.env.UPPYSERVER_AWS_KEY,
-        secret: process.env.COMPANION_AWS_SECRET || process.env.UPPYSERVER_AWS_SECRET,
-        bucket: process.env.COMPANION_AWS_BUCKET || process.env.UPPYSERVER_AWS_BUCKET,
-        endpoint: process.env.COMPANION_AWS_ENDPOINT || process.env.UPPYSERVER_AWS_ENDPOINT,
-        region: process.env.COMPANION_AWS_REGION || process.env.UPPYSERVER_AWS_REGION
+        key: process.env.COMPANION_AWS_KEY,
+        secret: getSecret('COMPANION_AWS_SECRET'),
+        bucket: process.env.COMPANION_AWS_BUCKET,
+        endpoint: process.env.COMPANION_AWS_ENDPOINT,
+        region: process.env.COMPANION_AWS_REGION
       }
     },
     server: {
-      host: process.env.COMPANION_DOMAIN || process.env.UPPYSERVER_DOMAIN,
-      protocol: process.env.COMPANION_PROTOCOL || process.env.UPPYSERVER_PROTOCOL,
-      path: process.env.COMPANION_PATH || process.env.UPPYSERVER_PATH,
-      implicitPath: process.env.COMPANION_IMPLICIT_PATH || process.env.UPPYSERVER_IMPLICIT_PATH,
-      oauthDomain: process.env.COMPANION_OAUTH_DOMAIN || process.env.UPPYSERVER_OAUTH_DOMAIN,
+      host: process.env.COMPANION_DOMAIN,
+      protocol: process.env.COMPANION_PROTOCOL,
+      path: process.env.COMPANION_PATH,
+      implicitPath: process.env.COMPANION_IMPLICIT_PATH,
+      oauthDomain: process.env.COMPANION_OAUTH_DOMAIN,
       validHosts: validHosts
     },
-    filePath: process.env.COMPANION_DATADIR || process.env.UPPYSERVER_DATADIR,
-    redisUrl: process.env.COMPANION_REDIS_URL || process.env.UPPYSERVER_REDIS_URL,
-    sendSelfEndpoint: process.env.COMPANION_SELF_ENDPOINT || process.env.UPPYSERVER_SELF_ENDPOINT,
+    filePath: process.env.COMPANION_DATADIR,
+    redisUrl: process.env.COMPANION_REDIS_URL,
+    sendSelfEndpoint: process.env.COMPANION_SELF_ENDPOINT,
     uploadUrls: uploadUrls ? uploadUrls.split(',') : null,
-    secret: process.env.COMPANION_SECRET || process.env.UPPYSERVER_SECRET || generateSecret(),
+    secret: getSecret('COMPANION_SECRET') || generateSecret(),
     debug: process.env.NODE_ENV !== 'production',
     // TODO: this is a temporary hack to support distributed systems.
     // it is not documented, because it should be changed soon.
-    cookieDomain: process.env.COMPANION_COOKIE_DOMAIN || process.env.UPPYSERVER_COOKIE_DOMAIN,
+    cookieDomain: process.env.COMPANION_COOKIE_DOMAIN,
     multipleInstances: true
   }
+}
+
+/**
+ * Tries to read the secret from a file if the according environment variable is set.
+ * Otherwise it falls back to the standard secret environment variable.
+ *
+ * @param {string} baseEnvVar
+ *
+ * @returns {string}
+ */
+const getSecret = (baseEnvVar) => {
+  return `${baseEnvVar}_FILE` in process.env
+    ? fs.readFileSync(process.env[`${baseEnvVar}_FILE`]).toString()
+    : process.env[baseEnvVar]
 }
 
 /**
@@ -91,7 +104,6 @@ const getConfigFromFile = () => {
   if (!path) return {}
 
   const rawdata = fs.readFileSync(getConfigPath())
-  // TODO validate the json object fields to match the uppy config schema
   // @ts-ignore
   return JSON.parse(rawdata)
 }

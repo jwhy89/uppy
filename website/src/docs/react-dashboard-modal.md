@@ -1,6 +1,7 @@
 ---
 title: "&lt;DashboardModal />"
 type: docs
+module: "@uppy/react"
 permalink: docs/react/dashboard-modal/
 order: 5
 category: 'React'
@@ -17,7 +18,9 @@ npm install @uppy/react
 ```
 
 ```js
+// Either:
 import DashboardModal from '@uppy/react/lib/DashboardModal'
+// Or:
 import { DashboardModal } from '@uppy/react'
 ```
 

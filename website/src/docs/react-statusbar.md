@@ -1,6 +1,7 @@
 ---
 title: "&lt;StatusBar />"
 type: docs
+module: "@uppy/react"
 permalink: docs/react/status-bar/
 alias: docs/react/statusbar/
 order: 1
@@ -18,7 +19,9 @@ npm install @uppy/react
 ```
 
 ```js
+// Either:
 import StatusBar from '@uppy/react/lib/StatusBar'
+// Or:
 import { StatusBar } from '@uppy/react'
 ```
 

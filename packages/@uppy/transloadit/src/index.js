@@ -25,10 +25,12 @@ const TL_UPPY_SERVER = /https?:\/\/api2(?:-\w+)?\.transloadit\.com\/uppy-server/
  * Upload files to Transloadit using Tus.
  */
 module.exports = class Transloadit extends Plugin {
+  static VERSION = require('../package.json').version
+
   constructor (uppy, opts) {
     super(uppy, opts)
     this.type = 'uploader'
-    this.id = 'Transloadit'
+    this.id = this.opts.id || 'Transloadit'
     this.title = 'Transloadit'
 
     this.defaultLocale = {
@@ -41,6 +43,7 @@ module.exports = class Transloadit extends Plugin {
 
     const defaultOptions = {
       service: 'https://api2.transloadit.com',
+      errorReporting: true,
       waitForEncoding: false,
       waitForMetadata: false,
       alwaysRunAssembly: false,
@@ -64,6 +67,7 @@ module.exports = class Transloadit extends Plugin {
     this._prepareUpload = this._prepareUpload.bind(this)
     this._afterUpload = this._afterUpload.bind(this)
     this._onError = this._onError.bind(this)
+    this._onTusError = this._onTusError.bind(this)
     this._onCancelAll = this._onCancelAll.bind(this)
     this._onFileUploadURLAvailable = this._onFileUploadURLAvailable.bind(this)
     this._onRestored = this._onRestored.bind(this)
@@ -79,7 +83,8 @@ module.exports = class Transloadit extends Plugin {
     }
 
     this.client = new Client({
-      service: this.opts.service
+      service: this.opts.service,
+      errorReporting: this.opts.errorReporting
     })
     // Contains Assembly instances for in-progress Assemblies.
     this.activeAssemblies = {}
@@ -356,7 +361,7 @@ module.exports = class Transloadit extends Plugin {
    * Custom state serialization for the Golden Retriever plugin.
    * It will pass this back to the `_onRestored` function.
    *
-   * @param {function} setData
+   * @param {Function} setData
    */
   _getPersistentData (setData) {
     const state = this.getPluginState()
@@ -471,6 +476,7 @@ module.exports = class Transloadit extends Plugin {
       this._onFileUploadComplete(id, file)
     })
     assembly.on('error', (error) => {
+      error.assembly = assembly.status
       this.uppy.emit('transloadit:assembly-error', assembly.status, error)
     })
 
@@ -610,7 +616,7 @@ module.exports = class Transloadit extends Plugin {
       return Promise.resolve()
     }
 
-    // AssemblyWatcher tracks completion state of all Assemblies in this upload.
+    // AssemblyWatcher tracks completion states of all Assemblies in this upload.
     const watcher = new AssemblyWatcher(this.uppy, assemblyIDs)
 
     fileIDs.forEach((fileID) => {
@@ -668,6 +674,17 @@ module.exports = class Transloadit extends Plugin {
     })
   }
 
+  _onTusError (err) {
+    if (err && /^tus: /.test(err.message)) {
+      const url = err.originalRequest && err.originalRequest.responseURL
+        ? err.originalRequest.responseURL
+        : null
+      this.client.submitError(err, { url, type: 'TUS_ERROR' }).then((_) => {
+        // if we can't report the error that sucks
+      })
+    }
+  }
+
   install () {
     this.uppy.addPreProcessor(this._prepareUpload)
     this.uppy.addPostProcessor(this._afterUpload)
@@ -678,13 +695,23 @@ module.exports = class Transloadit extends Plugin {
     // Handle cancellation.
     this.uppy.on('cancel-all', this._onCancelAll)
 
+    // For error reporting.
+    this.uppy.on('upload-error', this._onTusError)
+
     if (this.opts.importFromUploadURLs) {
       // No uploader needed when importing; instead we take the upload URL from an existing uploader.
       this.uppy.on('upload-success', this._onFileUploadURLAvailable)
     } else {
       this.uppy.use(Tus, {
         // Disable tus-js-client fingerprinting, otherwise uploading the same file at different times
-        // will upload to the same Assembly.
+        // will upload to an outdated Assembly, and we won't get socket events for it.
+        //
+        // To resume a Transloadit upload, we need to reconnect to the websocket, and the state that's
+        // required to do that is not saved by tus-js-client's fingerprinting. We need the tus URL,
+        // the Assembly URL, and the WebSocket URL, at least. We also need to know _all_ the files that
+        // were added to the Assembly, so we can properly complete it. All that state is handled by
+        // Golden Retriever. So, Golden Retriever is required to do resumability with the Transloadit plugin,
+        // and we disable Tus's default resume implementation to prevent bad behaviours.
         resume: false,
         // Disable Companion's retry optimisation; we need to change the endpoint on retry
         // so it can't just reuse the same tus.Upload instance server-side.

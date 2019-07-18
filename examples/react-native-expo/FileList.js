@@ -15,17 +15,20 @@ import SvgUri from 'react-native-svg-uri'
 //   return str
 // }
 
-// function FileIcon () {
-//   return <View style={styles.itemIconContainer}>
-//     <Image
-//       style={styles.itemIcon}
-//       source={require('./assets/file-icon.png')}
-//     />
-//   </View>
-// }
+function FileIcon () {
+  return <View style={styles.itemIconContainer}>
+    <Image
+      style={styles.itemIcon}
+      source={require('./assets/file-icon.png')}
+    />
+  </View>
+}
 
 function UppyDashboardFileIcon (props) {
   const icon = renderStringFromJSX(getFileTypeIcon(props.type).icon)
+  if (!icon) {
+    return <FileIcon />
+  }
   const color = getFileTypeIcon(props.type).color
   return (
     <View style={{
@@ -54,7 +57,7 @@ export default function FileList (props) {
         data={uppyFilesArray}
         keyExtractor={(item, index) => item.id}
         numColumns={2}
-        renderItem={({item}) => {
+        renderItem={({ item }) => {
           return (
             <View style={styles.item}>
               {item.type === 'image'

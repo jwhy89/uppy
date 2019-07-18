@@ -5,6 +5,7 @@ title: "Dashboard"
 module: "@uppy/dashboard"
 permalink: docs/dashboard/
 category: 'UI Elements'
+tagline: full-featured sleek UI with file previews, metadata editing, upload/pause/resume/cancel buttons and more. Includes <code>StatusBar</code> and <code>Informer</code> plugins by default
 ---
 
 `@uppy/dashboard` is a universal UI plugin for Uppy, offering several useful features:
@@ -188,7 +189,7 @@ Optionally, specify a string of text that explains something about the upload fo
 
 An array of UI field objects that will be shown when a user clicks the “edit” button on that file. Configuring this enables the "edit" button on file cards. Each object requires:
 
-- `id`, the name of the meta field.
+- `id`, the name of the meta field. Note: this will also be used in CSS/HTML as part of the `id` attribute, so it’s better to [avoid using characters like periods, semicolons, etc](https://stackoverflow.com/a/79022).
 - `name`, the label shown in the interface.
 - `placeholder`, the text shown when no value is set in the field.
 
@@ -202,6 +203,8 @@ An array of UI field objects that will be shown when a user clicks the “edit�
   ]
 })
 ```
+
+![](/images/uppy-dashboard-meta-fields.jpg)
 
 Note that this metadata will only be set on a file object if it is entered by the user. If the user doesn't edit a file's metadata, it will not have default values; instead everything will be `undefined`. If you want to set a certain meta field to each file regardless of user actions, set [`meta` in the Uppy constructor options](/docs/uppy/#meta).
 
@@ -348,3 +351,19 @@ if ( dashboard.isModalOpen() ) {
   dashboard.closeModal()
 }
 ```
+
+## Events
+
+### `dashboard:modal-open`
+
+Fired when the Dashboard modal is open.
+
+```js
+uppy.on('dashboard:modal-open', () => {
+  console.log('Modal is open')
+})
+```
+
+### `dashboard:modal-closed`
+
+Fired when the Dashboard modal is closed.

@@ -17,6 +17,7 @@ const interceptor = require('express-interceptor')
 const logger = require('./server/logger')
 const { STORAGE_PREFIX } = require('./server/Uploader')
 const middlewares = require('./server/middlewares')
+const { shortenToken } = require('./server/Uploader')
 
 const providers = providerManager.getDefaultProviders()
 const defaultOptions = {
@@ -63,19 +64,34 @@ module.exports.app = (options = {}) => {
   app.use((req, res, next) => {
     res.header(
       'Access-Control-Allow-Headers',
-      [res.get('Access-Control-Allow-Headers'), 'uppy-auth-token'].join(', ')
+      [
+        'uppy-auth-token',
+        'uppy-versions',
+        res.get('Access-Control-Allow-Headers')
+      ].join(',')
     )
-    next()
-  })
-  if (options.sendSelfEndpoint) {
-    app.use('*', (req, res, next) => {
+
+    const exposedHeaders = [
+      // exposed so it can be accessed for our custom uppy preflight
+      'Access-Control-Allow-Headers'
+    ]
+
+    if (options.sendSelfEndpoint) {
+      // add it to the exposed headers.
+      exposedHeaders.push('i-am')
+
       const { protocol } = options.server
       res.header('i-am', `${protocol}://${options.sendSelfEndpoint}`)
-      // add it to the exposed custom headers.
-      res.header('Access-Control-Expose-Headers', [res.get('Access-Control-Expose-Headers'), 'i-am'].join(', '))
-      next()
-    })
-  }
+    }
+
+    if (res.get('Access-Control-Expose-Headers')) {
+      // if the header had been previously set, the values should be added too
+      exposedHeaders.push(res.get('Access-Control-Expose-Headers'))
+    }
+
+    res.header('Access-Control-Expose-Headers', exposedHeaders.join(','))
+    next()
+  })
 
   // add uppy options to the request object so it can be accessed by subsequent handlers.
   app.use('*', getOptionsMiddleware(options))
@@ -86,7 +102,6 @@ module.exports.app = (options = {}) => {
   app.get('/:providerName/connect', middlewares.hasSessionAndProvider, controllers.connect)
   app.get('/:providerName/redirect', middlewares.hasSessionAndProvider, controllers.redirect)
   app.get('/:providerName/logout', middlewares.hasSessionAndProvider, middlewares.gentleVerifyToken, controllers.logout)
-  app.get('/:providerName/authorized', middlewares.hasSessionAndProvider, middlewares.gentleVerifyToken, controllers.authorized)
   app.get('/:providerName/send-token', middlewares.hasSessionAndProvider, middlewares.verifyToken, controllers.sendToken)
   app.get('/:providerName/list/:id?', middlewares.hasSessionAndProvider, middlewares.verifyToken, controllers.list)
   app.post('/:providerName/get/:id', middlewares.hasSessionAndProvider, middlewares.verifyToken, controllers.get)
@@ -127,7 +142,7 @@ module.exports.socket = (server) => {
      */
     function sendProgress (data) {
       ws.send(jsonStringify(data), (err) => {
-        if (err) logger.error(err, 'socket.progress.error')
+        if (err) logger.error(err, 'socket.progress.error', shortenToken(token))
       })
     }
 
@@ -135,7 +150,7 @@ module.exports.socket = (server) => {
     // if we have any already stored progress data on the upload.
     if (redisClient) {
       redisClient.get(`${STORAGE_PREFIX}:${token}`, (err, data) => {
-        if (err) logger.error(err, 'socket.redis.error')
+        if (err) logger.error(err, 'socket.redis.error', shortenToken(token))
         if (data) {
           const dataObj = JSON.parse(data.toString())
           if (dataObj.action) sendProgress(dataObj)
@@ -171,10 +186,13 @@ const interceptGrantErrorResponse = interceptor((req, res) => {
     intercept: (body, send) => {
       const unwantedBody = 'error=Grant%3A%20missing%20session%20or%20misconfigured%20provider'
       if (body === unwantedBody) {
-        logger.error(`grant.js responded with error: ${body}`, 'grant.oauth.error')
+        logger.error(`grant.js responded with error: ${body}`, 'grant.oauth.error', req.id)
+        res.set('Content-Type', 'text/plain')
+        const reqHint = req.id ? `Request ID: ${req.id}` : ''
         send([
           'Companion was unable to complete the OAuth process :(',
-          '(Hint, try clearing your cookies and try again)'
+          'Error: User session is missing or the Provider was misconfigured',
+          reqHint
         ].join('\n'))
       } else {
         send(body)
@@ -215,10 +233,12 @@ const getOptionsMiddleware = (options) => {
    * @param {function} next
    */
   const middleware = (req, res, next) => {
+    const versionFromQuery = req.query.uppyVersions ? decodeURIComponent(req.query.uppyVersions) : null
     req.uppy = {
       options,
       s3Client,
       authToken: req.header('uppy-auth-token') || req.query.uppyAuthToken,
+      clientVersion: req.header('uppy-versions') || versionFromQuery || '1.0.0',
       buildURL: getURLBuilder(options)
     }
     next()

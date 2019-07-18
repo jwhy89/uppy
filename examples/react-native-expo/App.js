@@ -5,7 +5,6 @@ import {
   View,
   AsyncStorage,
   Image
-  // Linking
 } from 'react-native'
 import Uppy from '@uppy/core'
 import Tus from '@uppy/tus'
@@ -14,31 +13,7 @@ import FileList from './FileList'
 import PauseResumeButton from './PauseResumeButton'
 import ProgressBar from './ProgressBar'
 import SelectFiles from './SelectFilesButton'
-
-function hashCode (str) {
-  // from https://stackoverflow.com/a/8831937/151666
-  var hash = 0
-  if (str.length === 0) {
-    return hash
-  }
-  for (var i = 0; i < str.length; i++) {
-    var char = str.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash // Convert to 32bit integer
-  }
-  return hash
-}
-
-function customFingerprint (file, options) {
-  let exifHash = 'noexif'
-  if (file.exif) {
-    exifHash = hashCode(JSON.stringify(file.exif))
-  }
-  // console.log(exifHash)
-  const fingerprint = ['tus', file.name || 'noname', file.size || 'nosize', exifHash].join('/')
-  console.log(fingerprint)
-  return fingerprint
-}
+import getTusFileReader from './tusFileReader'
 
 export default class App extends React.Component {
   constructor () {
@@ -70,7 +45,8 @@ export default class App extends React.Component {
     this.uppy.use(Tus, {
       endpoint: 'https://master.tus.io/files/',
       urlStorage: AsyncStorage,
-      fingerprint: customFingerprint
+      fileReader: getTusFileReader,
+      chunkSize: 10 * 1024 * 1024 // keep the chunk size small to avoid memory exhaustion
     })
     this.uppy.on('upload-progress', (file, progress) => {
       this.setState({
@@ -149,9 +125,9 @@ export default class App extends React.Component {
           marginBottom: 20,
           textAlign: 'center'
         }}>Uppy in React Native</Text>
-        <View style={{alignItems: 'center'}}>
+        <View style={{ alignItems: 'center' }}>
           <Image
-            style={{width: 80, height: 78, marginBottom: 50}}
+            style={{ width: 80, height: 78, marginBottom: 50 }}
             source={require('./assets/uppy-logo.png')}
           />
         </View>
@@ -161,7 +137,7 @@ export default class App extends React.Component {
           ? <Text style={{
             marginBottom: 10,
             marginTop: 10,
-            color: '#b8006b'}}>{this.state.info.message}</Text>
+            color: '#b8006b' }}>{this.state.info.message}</Text>
           : null
         }
 
@@ -174,10 +150,10 @@ export default class App extends React.Component {
           uploadComplete={this.state.uploadComplete} />
 
         <UppyFilePicker
-          show={this.state.isFilePickerVisible}
           uppy={this.uppy}
+          show={this.state.isFilePickerVisible}
           onRequestClose={this.hideFilePicker}
-          serverUrl="http://localhost:3020" />
+          companionUrl="http://localhost:3020" />
 
         <FileList uppy={this.uppy} />
 

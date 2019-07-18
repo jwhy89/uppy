@@ -15,7 +15,12 @@ npm run bootstrap
 
 We use lerna to manage the many plugin packages Uppy has. You should always do `npm run bootstrap` after an `npm install` to make sure lerna has installed the dependencies of each package and that the `package-lock.json` in the repository root is up to date.
 
-Our website’s examples section is also our playground, please read the [Local Previews](#Local-Previews) section to get up and running.
+Our website’s examples section is also our playground, please read the [Local Previews](#Local-previews) section to get up and running.
+
+### Requiring files
+
+- If we are `require()`ing a file from the same subpackage (e.g. require `@uppy/dashboard/utils/hi.js` from `@uppy/dashboard/src/index.js`) - we can freely use relative imports, as long as the required file is under the `src` directory (`/:packageName/src/**/*.js`).
+- But if we want to require some file from another subpackage - we should use global @uppy requires, and they should always be in the form of `@uppy/:packageName/(lib instead of src)/(same path).js`
 
 ## Tests
 
@@ -83,7 +88,7 @@ npm install
 npm start
 ```
 
-Releases are managed by [Lerna](https://github.com/lerna/lerna/tree/2.x). We do some cleanup and compile work around releases too. Use the npm release script:
+Releases are managed by [Lerna](https://github.com/lerna/lerna). We do some cleanup and compile work around releases too. Use the npm release script:
 
 ```bash
 npm run release
@@ -119,28 +124,18 @@ Even though bundled in this repo, the website is regarded as a separate project.
 
 ### Local previews
 
-It is recommended to exclude `./website/public/` from your editor if you want efficient searches.
-
-To install the required node modules, type:
-
-```bash
-npm install && cd website && npm install && cd ..
-```
-
-For local previews on http://localhost:4000, type:
-
-```bash
-npm run web:start # that gets you just the website. if you need companion, etc. you can use `npm start` instead
-```
-
-This will watch the website, as well as Uppy, as the examples, and rebuild everything and refresh your browser as files change.
+1. `npm install`
+2. `npm run bootstrap`
+3. `cd website && npm install && cd ..`
+4. `npm start`
+5. Go to http://localhost:4000. Your changes in `/website` and `/packages/@uppy` will be watched, your browser will refresh as files change.
 
 Then, to work on, for instance, the XHRUpload example, you would edit the following files:
 
 ```bash
-${EDITOR} src/core/Core.js \
-  src/plugins/XHRUpload.js \
-  src/plugins/Plugin.js \
+${EDITOR} packages/@uppy/core/src/index.js \
+  packages/@uppy/core/src/Plugin.js \
+  packages/@uppy/xhr-upload/src/index.js \
   website/src/examples/xhrupload/app.es6
 ```
 

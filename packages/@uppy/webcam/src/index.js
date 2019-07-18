@@ -11,7 +11,9 @@ const PermissionsScreen = require('./PermissionsScreen')
 // Setup getUserMedia, with polyfill for older browsers
 // Adapted from: https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
 function getMediaDevices () {
+  // eslint-disable-next-line compat/compat
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    // eslint-disable-next-line compat/compat
     return navigator.mediaDevices
   }
 
@@ -33,6 +35,8 @@ function getMediaDevices () {
  * Webcam
  */
 module.exports = class Webcam extends Plugin {
+  static VERSION = require('../package.json').version
+
   constructor (uppy, opts) {
     super(uppy, opts)
     this.mediaDevices = getMediaDevices()
@@ -65,7 +69,8 @@ module.exports = class Webcam extends Plugin {
         'picture'
       ],
       mirror: true,
-      facingMode: 'user'
+      facingMode: 'user',
+      preferredVideoMimeType: null
     }
 
     // merge default options with the ones set by user
@@ -140,11 +145,16 @@ module.exports = class Webcam extends Plugin {
   }
 
   startRecording () {
-    // TODO We can check here if any of the mime types listed in the
-    // mimeToExtensions map in Utils.js are supported, and prefer to use one of
-    // those.
-    // Right now we let the browser pick a type that it deems appropriate.
-    this.recorder = new MediaRecorder(this.stream)
+    let options = {}
+    const preferredVideoMimeType = this.opts.preferredVideoMimeType
+
+    // Attempt to use the passed preferredVideoMimeType (if any) during recording.
+    // If the browser doesn't support it, we'll fall back to the browser default instead
+    if (preferredVideoMimeType && MediaRecorder.isTypeSupported(preferredVideoMimeType) && getFileTypeExtension(preferredVideoMimeType)) {
+      options.mimeType = preferredVideoMimeType
+    }
+
+    this.recorder = new MediaRecorder(this.stream, options)
     this.recordingChunks = []
     this.recorder.addEventListener('dataavailable', (event) => {
       this.recordingChunks.push(event.data)
@@ -169,15 +179,16 @@ module.exports = class Webcam extends Plugin {
         isRecording: false
       })
       return this.getVideo()
-    })
-    .then((file) => {
+    }).then((file) => {
       try {
         this.uppy.addFile(file)
       } catch (err) {
-        // Nothing, restriction errors handled in Core
+        // Logging the error, exept restrictions, which is handled in Core
+        if (!err.isRestriction) {
+          this.uppy.log(err)
+        }
       }
-    })
-    .then(() => {
+    }).then(() => {
       this.recordingChunks = null
       this.recorder = null
 
@@ -251,7 +262,10 @@ module.exports = class Webcam extends Plugin {
       try {
         this.uppy.addFile(tagFile)
       } catch (err) {
-        // Nothing, restriction errors handled in Core
+        // Logging the error, exept restrictions, which is handled in Core
+        if (!err.isRestriction) {
+          this.uppy.log(err)
+        }
       }
     }, (error) => {
       this.captureInProgress = false
@@ -265,7 +279,7 @@ module.exports = class Webcam extends Plugin {
       return Promise.reject(new Error('No video element found, likely due to the Webcam tab being closed.'))
     }
 
-    const name = `webcam-${Date.now()}.jpg`
+    const name = `cam-${Date.now()}.jpg`
     const mimeType = 'image/jpeg'
 
     const width = video.videoWidth

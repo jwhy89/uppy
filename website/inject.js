@@ -8,6 +8,8 @@ const gzipSize = require('gzip-size')
 const bytes = require('pretty-bytes')
 const browserify = require('browserify')
 const touch = require('touch')
+const glob = require('glob')
+const LocaleCode = require('locale-code')
 
 const webRoot = __dirname
 const uppyRoot = path.join(__dirname, '../packages/uppy')
@@ -126,6 +128,30 @@ async function injectBundles () {
   })
 }
 
+// re-enable after rate limiter issue is fixed
+//
+async function injectGhStars () {
+  const opts = {}
+  if ('GITHUB_TOKEN' in process.env) {
+    opts.auth = process.env.GITHUB_TOKEN
+  }
+
+  const Octokit = require('@octokit/rest')
+  const octokit = new Octokit(opts)
+
+  let { headers, data } = await octokit.repos.get({
+    owner: 'transloadit',
+    repo: 'uppy'
+  })
+
+  console.log(`${headers['x-ratelimit-remaining']} requests remaining until we hit GitHub ratelimiter`)
+
+  let dstpath = path.join(webRoot, 'themes', 'uppy', 'layout', 'partials', 'generated_stargazers.ejs')
+  fs.writeFileSync(dstpath, data.stargazers_count, 'utf-8')
+
+  console.log(`${data.stargazers_count} stargazers written to '${dstpath}'`)
+}
+
 async function injectMarkdown () {
   let sources = {
     '.github/ISSUE_TEMPLATE/integration_help.md': `src/_template/integration_help.md`,
@@ -150,6 +176,46 @@ async function injectMarkdown () {
   touch(path.join(webRoot, `/src/support.md`))
 }
 
+function injectLocaleList () {
+  const mdTable = [
+    `<!-- WARNING! This file was automatically injected. Please run "${path.basename(__filename)}" to re-generate -->\n\n`,
+    '| %count% Locales | NPM                | CDN                 | Source on GitHub |',
+    '| --------------- | ------------------ | ------------------- | ---------------- |'
+  ]
+  const mdRows = []
+
+  const localePackagePath = path.join(localesRoot, 'src', '*.js')
+  let localePackageVersion = require(path.join(localesRoot, 'package.json')).version
+
+  glob.sync(localePackagePath).forEach((localePath) => {
+    const localeName = path.basename(localePath, '.js')
+    let localeNameWithDash = localeName.replace(/_/g, '-')
+
+    const parts = localeNameWithDash.split('-')
+    let variant = ''
+    if (parts.length > 2) {
+      let lang = parts.shift()
+      let country = parts.shift()
+      variant = parts.join(', ')
+      localeNameWithDash = `${lang}-${country}`
+    }
+
+    const languageName = LocaleCode.getLanguageName(localeNameWithDash)
+    const countryName = LocaleCode.getCountryName(localeNameWithDash)
+    const npmPath = `<code><a href="https://www.npmjs.com/package/@uppy/locales">@uppy/locales</a>/lib/${localeName}</code>`
+    const cdnPath = `[\`${localeName}.min.js\`](https://transloadit.edgly.net/releases/uppy/locales/v${localePackageVersion}/${localeName}.min.js)`
+    const githubSource = `[\`${localeName}.js\`](https://github.com/transloadit/uppy/blob/master/packages/%40uppy/locales/src/${localeName}.js)`
+    const mdTableRow = `| ${languageName}<br/> <small>${countryName}</small>${variant ? `<br /><small>(${variant})</small>` : ''} | ${npmPath} | ${cdnPath} | ✏️ ${githubSource} |`
+    mdRows.push(mdTableRow)
+  })
+
+  const resultingMdTable = mdTable.concat(mdRows.sort()).join('\n').replace('%count%', mdRows.length)
+
+  let dstpath = path.join(webRoot, 'src', '_template', 'list_of_locale_packs.md')
+  fs.writeFileSync(dstpath, resultingMdTable, 'utf-8')
+  console.info(chalk.green(`✓ injected: `), chalk.grey(dstpath))
+}
+
 async function readConfig () {
   try {
     const buf = await promisify(fs.readFile)(configPath, 'utf8')
@@ -162,7 +228,11 @@ async function readConfig () {
 async function inject () {
   const config = await readConfig()
 
+  await injectGhStars()
+
   await injectMarkdown()
+
+  injectLocaleList()
 
   config.uppy_version = version
   config.uppy_version_anchor = version.replace(/[^\d]+/g, '')

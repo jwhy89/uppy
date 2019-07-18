@@ -13,7 +13,7 @@ This example demonstrates how to unlock Transloadit’s features within Uppy.
 {% endblockquote %}
 
 <p>
-  In this particular example we take your images (from Instagram), resize them to 250px and add the copyright caption text: <code>© 2018 Transloadit.com</code> at the bottom right corner.
+  In this particular example we take your images (from Instagram), resize them to 250px and add the copyright caption text: <code>© Transloadit.com</code> at the bottom right corner.
 </p>
 
 <p>
@@ -26,6 +26,9 @@ This example demonstrates how to unlock Transloadit’s features within Uppy.
   <li>
      Copy the API Key that you can find on
     <a href="https://transloadit.com/accounts/credentials" rel="noreferrer noopener" target="_blank">this page</a> and paste it below.
+  </li>
+  <li>
+    Optionally, copy the secret key and paste it below. This will enable Signature Authentication. Make sure nobody's watching!
   </li>
   <li>
     Happy encoding &amp; fetching from Instagram :)
@@ -42,36 +45,45 @@ This example demonstrates how to unlock Transloadit’s features within Uppy.
          placeholder="Your Transloadit API Key">
 </p>
 
+<p>
+  <label for="transloadit-secret-key"
+         style="display: block; font-size: 13px; text-transform: uppercase; font-weight: bold;">
+    Transloadit secret Key:</label>
+  <input type="text"
+         style="font-size: 15px; width: 300px; max-width: 100%; border: 0; border-bottom: 1px solid black; padding: 6px 8px; margin-bottom: 20px;"
+         id="transloadit-secret-key"
+         placeholder="Your Transloadit secret Key (optional)">
+</p>
+
 <link rel="stylesheet" href="app.css">
 <% include app.html %>
 
 <hr />
 
-<p id="console-wrapper">Console output (latest logs are at the top):
+<p id="console-wrapper">Console output:
   <br />
 </p>
 
 <script src="app.js"></script>
 <script>
   var apiKeyEl = document.getElementById('transloadit-api-key')
+  var secretKeyEl = document.getElementById('transloadit-secret-key')
   var storedApiKey = localStorage.getItem('uppyTransloaditApiKey')
 
   if (storedApiKey) {
     apiKeyEl.value = storedApiKey
     window.TRANSLOADIT_API_KEY = storedApiKey
-    initUppy()
+    initUppy({ secret: secretKeyEl.value })
   }
 
   function handleInputChange (ev) {
-    var enteredApiKey = ev.target.value
-    window.TRANSLOADIT_API_KEY = enteredApiKey
-    localStorage.setItem('uppyTransloaditApiKey', enteredApiKey)
-    initUppy()
+    window.TRANSLOADIT_API_KEY = apiKeyEl.value
+    localStorage.setItem('uppyTransloaditApiKey', apiKeyEl.value)
+    initUppy({ secret: secretKeyEl.value })
   }
 
-  apiKeyEl.addEventListener('change', handleInputChange)
-  apiKeyEl.addEventListener('keyup',  handleInputChange)
-  apiKeyEl.addEventListener('paste',  handleInputChange)
+  apiKeyEl.addEventListener('input', handleInputChange)
+  secretKeyEl.addEventListener('input', handleInputChange)
 </script>
 
 <hr />
@@ -92,6 +104,11 @@ const uppy = Uppy({
     maxNumberOfFiles: 2,
     minNumberOfFiles: 1,
     allowedFileTypes: ['image/*']
+  },
+  locale: {
+    strings: {
+      youCanOnlyUploadFileTypes: 'You can only upload images'
+    }
   }
 })
 
@@ -101,7 +118,7 @@ uppy
       auth: {
         key: YOUR_TRANSLOADIT_API_KEY
       },
-      // It's more secure to use a template_id and enable
+      // It’s more secure to use a template_id and enable
       // Signature Authentication
       steps: {
         resize: {
@@ -111,7 +128,7 @@ uppy
           resize_strategy: 'fit',
           text: [
             {
-              text: '© 2018 Transloadit.com',
+              text: '© Transloadit.com',
               size: 12,
               font: 'Ubuntu',
               color: '#eeeeee',

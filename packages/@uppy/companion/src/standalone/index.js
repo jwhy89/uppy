@@ -7,6 +7,7 @@ const bodyParser = require('body-parser')
 // @ts-ignore
 const promBundle = require('express-prom-bundle')
 const session = require('express-session')
+const addRequestId = require('express-request-id')()
 const helper = require('./helper')
 // @ts-ignore
 const { version } = require('../../package.json')
@@ -14,13 +15,14 @@ const { version } = require('../../package.json')
 const app = express()
 
 // for server metrics tracking.
-const metricsMiddleware = promBundle({includeMethod: true})
+const metricsMiddleware = promBundle({ includeMethod: true })
 const promClient = metricsMiddleware.promClient
 const collectDefaultMetrics = promClient.collectDefaultMetrics
 const promInterval = collectDefaultMetrics({ register: promClient.register, timeout: 5000 })
 
 // Add version as a prometheus gauge
 const versionGauge = new promClient.Gauge({ name: 'companion_version', help: 'npm version as an integer' })
+// @ts-ignore
 const numberVersion = version.replace(/\D/g, '') * 1
 versionGauge.set(numberVersion)
 
@@ -28,16 +30,24 @@ if (app.get('env') !== 'test') {
   clearInterval(promInterval)
 }
 
+app.use(addRequestId)
 // log server requests.
 app.use(morgan('combined'))
 morgan.token('url', (req, res) => {
-  // don't log access_tokens in urls
-  if (req.query && req.query.access_token) {
+  const mask = (key) => {
+    // don't log access_tokens in urls
     const query = Object.assign({}, req.query)
     // replace logged access token with xxxx character
-    query.access_token = 'x'.repeat(req.query.access_token.length)
+    query[key] = 'x'.repeat(req.query[key].length)
     return `${req.path}?${qs.stringify(query)}`
   }
+
+  if (req.query && req.query['access_token']) {
+    return mask('access_token')
+  } else if (req.query && req.query['uppyAuthToken']) {
+    return mask('uppyAuthToken')
+  }
+
   return req.originalUrl || req.url
 })
 
@@ -61,16 +71,16 @@ const sessionOptions = {
   saveUninitialized: true
 }
 
-if (process.env.COMPANION_REDIS_URL || process.env.UPPYSERVER_REDIS_URL) {
+if (process.env.COMPANION_REDIS_URL) {
   const RedisStore = require('connect-redis')(session)
   sessionOptions.store = new RedisStore({
-    url: process.env.COMPANION_REDIS_URL || process.env.UPPYSERVER_REDIS_URL
+    url: process.env.COMPANION_REDIS_URL
   })
 }
 
-if (process.env.COMPANION_COOKIE_DOMAIN || process.env.UPPYSERVER_COOKIE_DOMAIN) {
+if (process.env.COMPANION_COOKIE_DOMAIN) {
   sessionOptions.cookie = {
-    domain: process.env.COMPANION_COOKIE_DOMAIN || process.env.UPPYSERVER_COOKIE_DOMAIN,
+    domain: process.env.COMPANION_COOKIE_DOMAIN,
     maxAge: 24 * 60 * 60 * 1000 // 1 day
   }
 }
@@ -78,7 +88,7 @@ if (process.env.COMPANION_COOKIE_DOMAIN || process.env.UPPYSERVER_COOKIE_DOMAIN)
 app.use(session(sessionOptions))
 
 app.use((req, res, next) => {
-  const protocol = process.env.COMPANION_PROTOCOL || process.env.UPPYSERVER_PROTOCOL || 'http'
+  const protocol = process.env.COMPANION_PROTOCOL || 'http'
 
   // if endpoint urls are specified, then we only allow those endpoints
   // otherwise, we allow any client url to access companion.
@@ -116,8 +126,8 @@ app.get('/', (req, res) => {
 
 // initialize uppy
 helper.validateConfig(uppyOptions)
-if (process.env.COMPANION_PATH || process.env.UPPYSERVER_PATH) {
-  app.use(process.env.COMPANION_PATH || process.env.UPPYSERVER_PATH, uppy.app(uppyOptions))
+if (process.env.COMPANION_PATH) {
+  app.use(process.env.COMPANION_PATH, uppy.app(uppyOptions))
 } else {
   app.use(uppy.app(uppyOptions))
 }
@@ -129,14 +139,14 @@ app.use((req, res, next) => {
 if (app.get('env') === 'production') {
   // @ts-ignore
   app.use((err, req, res, next) => {
-    console.error('\x1b[31m', err, '\x1b[0m')
-    res.status(err.status || 500).json({ message: 'Something went wrong' })
+    console.error('\x1b[31m', req.id, err, '\x1b[0m')
+    res.status(err.status || 500).json({ message: 'Something went wrong', requestId: req.id })
   })
 } else {
   // @ts-ignore
   app.use((err, req, res, next) => {
-    console.error('\x1b[31m', err, '\x1b[0m')
-    res.status(err.status || 500).json({ message: err.message, error: err })
+    console.error('\x1b[31m', req.id, err, '\x1b[0m')
+    res.status(err.status || 500).json({ message: err.message, error: err, requestId: req.id })
   })
 }
 

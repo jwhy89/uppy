@@ -1,6 +1,7 @@
 ---
 title: "&lt;ProgressBar />"
 type: docs
+module: "@uppy/react"
 permalink: docs/react/progress-bar/
 alias: docs/react/progressbar/
 order: 3
@@ -18,7 +19,9 @@ npm install @uppy/react
 ```
 
 ```js
+// Either:
 import ProgressBar from '@uppy/react/lib/ProgressBar'
+// Or:
 import { ProgressBar } from '@uppy/react'
 ```
 

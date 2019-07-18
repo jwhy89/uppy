@@ -48,10 +48,12 @@ function createEventTracker (emitter) {
  *
  */
 module.exports = class Tus extends Plugin {
+  static VERSION = require('../package.json').version
+
   constructor (uppy, opts) {
     super(uppy, opts)
     this.type = 'uploader'
-    this.id = 'Tus'
+    this.id = this.opts.id || 'Tus'
     this.title = 'Tus'
 
     // set default options
@@ -117,7 +119,7 @@ module.exports = class Tus extends Plugin {
   /**
    * Create a new Tus upload
    *
-   * @param {object} file for use with upload
+   * @param {Object} file for use with upload
    * @param {integer} current file in a queue
    * @param {integer} total number of files in a queue
    * @returns {Promise}
@@ -177,10 +179,19 @@ module.exports = class Tus extends Plugin {
         }
       }
 
+      const meta = {}
+      const metaFields = Array.isArray(optsTus.metaFields)
+        ? optsTus.metaFields
+        // Send along all fields by default.
+        : Object.keys(file.meta)
+      metaFields.forEach((item) => {
+        meta[item] = file.meta[item]
+      })
+
       // tusd uses metadata fields 'filetype' and 'filename'
-      const meta = Object.assign({}, file.meta)
       copyProp(meta, 'type', 'filetype')
       copyProp(meta, 'name', 'filename')
+
       optsTus.metadata = meta
 
       const upload = new tus.Upload(file.data, optsTus)
@@ -256,14 +267,11 @@ module.exports = class Tus extends Plugin {
         this.uppy.setFileState(file.id, { serverToken: res.token })
         file = this.uppy.getFile(file.id)
         return file
-      })
-      .then((file) => {
+      }).then((file) => {
         return this.connectToServerSocket(file)
-      })
-      .then(() => {
+      }).then(() => {
         resolve()
-      })
-      .catch((err) => {
+      }).catch((err) => {
         reject(new Error(err))
       })
     })

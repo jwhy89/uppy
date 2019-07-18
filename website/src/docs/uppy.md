@@ -5,6 +5,7 @@ title: "Uppy"
 module: "@uppy/core"
 permalink: docs/uppy/
 category: 'Docs'
+tagline: The core module that orchestrates everything
 ---
 
 This is the core module that orchestrates everything in Uppy, managing state and events and providing methods.
@@ -49,7 +50,8 @@ const uppy = Uppy({
   onBeforeFileAdded: (currentFile, files) => currentFile,
   onBeforeUpload: (files) => {},
   locale: {},
-  store: new DefaultStore()
+  store: new DefaultStore(),
+  logger: nullLogger
 })
 ```
 
@@ -78,6 +80,47 @@ Whether to allow multiple upload batches. This means multiple calls to `.upload(
 With this option set to `true`, users can upload some files, and then add _more_ files and upload those as well. A model use case for this is uploading images to a gallery or adding attachments to an email.
 
 With this option set to `false`, users can upload some files, and you can listen for the ['complete'](/docs/uppy/#complete) event to continue to the next step in your app's upload flow. A typical use case for this is uploading a new profile picture. If you are integrating with an existing HTML form, this option gives the closest behaviour to a bare `<input type="file">`.
+
+### `logger`
+
+An object of methods that are called with debug information from [`uppy.log`](/docs/uppy/#uppy-log).
+
+Set `logger: Uppy.debugLogger` to get debug info output to the browser console:
+
+```js
+const Uppy = require('@uppy/core')
+const uppy = Uppy({
+  logger: Uppy.debugLogger
+})
+```
+
+You can also provide your own logger object: it should expose `debug`, `warn` and `error` methods, as shown in the examples below.
+
+By default `logger` is set to `nullLogger`, which does nothing:
+
+```js
+const nullLogger = {
+  debug: (...args) => {},
+  warn: (...args) => {},
+  error: (...args) => {}
+}
+```
+
+`logger: Uppy.debugLogger` looks like this:
+
+```js
+const debugLogger = {
+  debug: (...args) => {
+    // IE 10 doesn’t support console.debug
+    const debug = console.debug || console.log
+    debug.call(console, `[Uppy] [${getTimeStamp()}]`, ...args)
+  },
+  warn: (...args) => console.warn(`[Uppy] [${getTimeStamp()}]`, ...args),
+  error: (...args) => console.error(`[Uppy] [${getTimeStamp()}]`, ...args)
+}
+```
+
+By providing your own `logger`, you can send the debug information to a server, choose to log errors only, etc.
 
 ### `restrictions: {}`
 
@@ -120,6 +163,8 @@ A function run before a file is added to Uppy. It gets passed `(currentFile, fil
 
 Use this function to run any number of custom checks on the selected file, or manipulate it, for instance, by optimizing a file name.
 
+> ⚠️ Note that this method is intended for quick synchronous checks/modifications only. If you need to do an async API call, or heavy work on a file (like compression or encryption), you should utilize a [custom plugin](/docs/writing-plugins/#Example-of-a-custom-plugin) instead.
+
 Return true/nothing or a modified file object to proceed with adding the file:
 
 ```js
@@ -155,7 +200,7 @@ onBeforeFileAdded: (currentFile, files) => {
 }
 ```
 
-**Note:** it is up to you to show a notification to the user about a file not passing validation. We recommend showing a message using [uppy.info()](#uppy-info) and logging to console for debugging purposes.
+**Note:** it is up to you to show a notification to the user about a file not passing validation. We recommend showing a message using [uppy.info()](#uppy-info) and logging to console for debugging purposes via [uppy.log()](#uppy-log).
 
 
 <a id="onBeforeUpload"></a>
@@ -164,6 +209,8 @@ onBeforeFileAdded: (currentFile, files) => {
 A function run before an upload begins. Gets passed `files` object with all the files that are already in Uppy.
 
 Use this to check if all files or their total number match your requirements, or manipulate all the files at once before upload.
+
+> ⚠️ Note that this method is intended for quick synchronous checks/modifications only. If you need to do an async API call, or heavy work on a file (like compression or encryption), you should utilize a [custom plugin](/docs/writing-plugins/#Example-of-a-custom-plugin) instead.
 
 Return true or modified `files` object to proceed:
 
@@ -191,7 +238,7 @@ onBeforeUpload: (files) => {
 }
 ```
 
-**Note:** it is up to you to show a notification to the user about a file not passing validation. We recommend showing a message using [uppy.info()](#uppy-info) and logging to console for debugging purposes.
+**Note:** it is up to you to show a notification to the user about a file not passing validation. We recommend showing a message using [uppy.info()](#uppy-info) and logging to console for debugging purposes via [uppy.log()](#uppy-log).
 
 ### `locale: {}`
 
@@ -219,6 +266,7 @@ Instead of overriding strings yourself, consider using [one of our language pack
 
 ```js
 const russianLocale = require('@uppy/locales/lib/ru_RU')
+// ^-- OR: import russianLocale from '@uppy/locales/lib/ru_RU'
 const uppy = Uppy({
   locale: russianLocale,
 })
@@ -473,7 +521,9 @@ Uninstall all plugins and close down this Uppy instance. Also runs `uppy.reset()
 - **message** *{string}*
 - **type** *{string=}* `error` or `warning`
 
-Logs stuff to console, only if `uppy.opts.debug` is set to true. Silent in production.
+Logs stuff to [`logger`](/docs/uppy/#logger) methods.
+
+See [`logger`](/docs/uppy/#logger) docs for details.
 
 ```js
 uppy.log('[Dashboard] adding files...')

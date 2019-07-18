@@ -16,6 +16,14 @@ function findIndex (array, predicate) {
   return -1
 }
 
+// location.origin does not exist in IE
+function getOrigin () {
+  if ('origin' in location) {
+    return location.origin // eslint-disable-line compat/compat
+  }
+  return `${location.protocol}//${location.hostname}${location.port ? `:${location.port}` : ''}`
+}
+
 class CloseWrapper extends Component {
   componentWillUnmount () {
     this.props.onUnmount()
@@ -30,8 +38,10 @@ class CloseWrapper extends Component {
  * Class to easily generate generic views for Provider plugins
  */
 module.exports = class ProviderView {
+  static VERSION = require('../package.json').version
+
   /**
-   * @param {object} instance of the plugin
+   * @param {Object} instance of the plugin
    */
   constructor (plugin, opts) {
     this.plugin = plugin
@@ -46,7 +56,7 @@ module.exports = class ProviderView {
     }
 
     // merge default options with the ones set by user
-    this.opts = Object.assign({}, defaultOptions, opts)
+    this.opts = { ...defaultOptions, ...opts }
 
     // Logic
     this.addFile = this.addFile.bind(this)
@@ -58,7 +68,6 @@ module.exports = class ProviderView {
     this.logout = this.logout.bind(this)
     this.preFirstRender = this.preFirstRender.bind(this)
     this.handleAuth = this.handleAuth.bind(this)
-    this.handleDemoAuth = this.handleDemoAuth.bind(this)
     this.sortByTitle = this.sortByTitle.bind(this)
     this.sortByDate = this.sortByDate.bind(this)
     this.isActiveRow = this.isActiveRow.bind(this)
@@ -104,8 +113,9 @@ module.exports = class ProviderView {
 
   /**
    * Based on folder ID, fetch a new folder and update it to state
-   * @param  {String} id Folder id
-   * @return {Promise}   Folders/files in folder
+   *
+   * @param  {string} id Folder id
+   * @returns {Promise}   Folders/files in folder
    */
   getFolder (id, name) {
     return this._loaderWrapper(
@@ -121,7 +131,7 @@ module.exports = class ProviderView {
         if (index !== -1) {
           updatedDirectories = state.directories.slice(0, index + 1)
         } else {
-          updatedDirectories = state.directories.concat([{id, title: name}])
+          updatedDirectories = state.directories.concat([{ id, title: name }])
         }
 
         this.username = this.username ? this.username : res.username
@@ -133,8 +143,9 @@ module.exports = class ProviderView {
 
   /**
    * Fetches new folder
+   *
    * @param  {Object} Folder
-   * @param  {String} title Folder title
+   * @param  {string} title Folder title
    */
   getNextFolder (folder) {
     this.getFolder(folder.requestPath, folder.name)
@@ -171,7 +182,9 @@ module.exports = class ProviderView {
     try {
       this.plugin.uppy.addFile(tagFile)
     } catch (err) {
-      // Nothing, restriction errors handled in Core
+      if (!err.isRestriction) {
+        this.plugin.uppy.log(err)
+      }
     }
   }
 
@@ -228,7 +241,7 @@ module.exports = class ProviderView {
 
   sortByTitle () {
     const state = Object.assign({}, this.plugin.getPluginState())
-    const {files, folders, sorting} = state
+    const { files, folders, sorting } = state
 
     let sortedFiles = files.sort((fileA, fileB) => {
       if (sorting === 'titleDescending') {
@@ -253,7 +266,7 @@ module.exports = class ProviderView {
 
   sortByDate () {
     const state = Object.assign({}, this.plugin.getPluginState())
-    const {files, folders, sorting} = state
+    const { files, folders, sorting } = state
 
     let sortedFiles = files.sort((fileA, fileB) => {
       let a = new Date(fileA.modifiedDate)
@@ -285,7 +298,7 @@ module.exports = class ProviderView {
 
   sortBySize () {
     const state = Object.assign({}, this.plugin.getPluginState())
-    const {files, sorting} = state
+    const { files, sorting } = state
 
     // check that plugin supports file sizes
     if (!files.length || !this.plugin.getItemData(files[0]).size) {
@@ -314,7 +327,9 @@ module.exports = class ProviderView {
 
   isChecked (file) {
     const { currentSelection } = this.plugin.getPluginState()
-    return currentSelection.some((item) => item === file)
+    // comparing id instead of the file object, because the reference to the object
+    // changes when we switch folders, and the file list is updated
+    return currentSelection.some((item) => item.id === file.id)
   }
 
   /**
@@ -330,8 +345,8 @@ module.exports = class ProviderView {
     if (folderId in folders && folders[folderId].loading) {
       return
     }
-    folders[folderId] = {loading: true, files: []}
-    this.plugin.setPluginState({selectedFolders: folders})
+    folders[folderId] = { loading: true, files: [] }
+    this.plugin.setPluginState({ selectedFolders: folders })
     return this.provider.list(folder.requestPath).then((res) => {
       let files = []
       res.items.forEach((item) => {
@@ -341,22 +356,22 @@ module.exports = class ProviderView {
         }
       })
       state = this.plugin.getPluginState()
-      state.selectedFolders[folderId] = {loading: false, files: files}
-      this.plugin.setPluginState({selectedFolders: folders})
-      const dashboard = this.plugin.uppy.getPlugin('Dashboard')
+      state.selectedFolders[folderId] = { loading: false, files: files }
+      this.plugin.setPluginState({ selectedFolders: folders })
+
       let message
       if (files.length) {
-        message = dashboard.i18n('folderAdded', {
+        message = this.plugin.uppy.i18n('folderAdded', {
           smart_count: files.length, folder: folder.name
         })
       } else {
-        message = dashboard.i18n('emptyFolderAdded')
+        message = this.plugin.uppy.i18n('emptyFolderAdded')
       }
       this.plugin.uppy.info(message)
     }).catch((e) => {
       state = this.plugin.getPluginState()
       delete state.selectedFolders[folderId]
-      this.plugin.setPluginState({selectedFolders: state.selectedFolders})
+      this.plugin.setPluginState({ selectedFolders: state.selectedFolders })
       this.handleError(e)
     })
   }
@@ -371,6 +386,7 @@ module.exports = class ProviderView {
   toggleCheckbox (e, file) {
     e.stopPropagation()
     e.preventDefault()
+    e.currentTarget.focus()
     let { folders, files } = this.plugin.getPluginState()
     let items = this.filterItems(folders.concat(files))
 
@@ -393,7 +409,7 @@ module.exports = class ProviderView {
     const { currentSelection } = this.plugin.getPluginState()
     if (this.isChecked(file)) {
       this.plugin.setPluginState({
-        currentSelection: currentSelection.filter((item) => item !== file)
+        currentSelection: currentSelection.filter((item) => item.id !== file.id)
       })
     } else {
       this.plugin.setPluginState({
@@ -410,16 +426,10 @@ module.exports = class ProviderView {
     })
   }
 
-  handleDemoAuth () {
-    const state = this.plugin.getPluginState()
-    this.plugin.setPluginState({}, state, {
-      authenticated: true
-    })
-  }
-
   handleAuth () {
-    const authState = btoa(JSON.stringify({ origin: location.origin }))
-    const link = `${this.provider.authUrl()}?state=${authState}`
+    const authState = btoa(JSON.stringify({ origin: getOrigin() }))
+    const clientVersion = encodeURIComponent(`@uppy/provider-views=${ProviderView.VERSION}`)
+    const link = `${this.provider.authUrl()}?state=${authState}&uppyVersions=${clientVersion}`
 
     const authWindow = window.open(link, '_blank')
     const handleToken = (e) => {
@@ -427,9 +437,19 @@ module.exports = class ProviderView {
         this.plugin.uppy.log(`rejecting event from ${e.origin} vs allowed pattern ${this.plugin.opts.companionAllowedHosts}`)
         return
       }
+
+      // Check if it's a string before doing the JSON.parse to maintain support
+      // for older Companion versions that used object references
+      const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data
+
+      if (!data.token) {
+        this.plugin.uppy.log('did not receive token from auth window')
+        return
+      }
+
       authWindow.close()
       window.removeEventListener('message', handleToken)
-      this.provider.setAuthToken(e.data.token)
+      this.provider.setAuthToken(data.token)
       this.preFirstRender()
     }
     window.addEventListener('message', handleToken)
@@ -446,15 +466,18 @@ module.exports = class ProviderView {
 
     const patterns = Array.isArray(allowedOrigin) ? allowedOrigin.map(getRegex) : [getRegex(allowedOrigin)]
     return patterns
-      .filter((pattern) => pattern !== null)
-      .some((pattern) => pattern.test(origin))
+      .filter((pattern) => pattern != null) // loose comparison to catch undefined
+      .some((pattern) => pattern.test(origin) || pattern.test(`${origin}/`)) // allowing for trailing '/'
   }
 
   handleError (error) {
     const uppy = this.plugin.uppy
     uppy.log(error.toString())
-    const message = uppy.i18n(error.isAuthError ? 'companionAuthError' : 'companionError')
-    uppy.info({message: message, details: error.toString()}, 'error', 5000)
+    if (error.isAuthError) {
+      return
+    }
+    const message = uppy.i18n('companionError')
+    uppy.info({ message: message, details: error.toString() }, 'error', 5000)
   }
 
   handleScroll (e) {
@@ -534,9 +557,9 @@ module.exports = class ProviderView {
           <AuthView
             pluginName={this.plugin.title}
             pluginIcon={this.plugin.icon}
-            demo={this.plugin.opts.demo}
             handleAuth={this.handleAuth}
-            handleDemoAuth={this.handleDemoAuth} />
+            i18n={this.plugin.uppy.i18n}
+            i18nArray={this.plugin.uppy.i18nArray} />
         </CloseWrapper>
       )
     }
@@ -551,7 +574,6 @@ module.exports = class ProviderView {
       sortByTitle: this.sortByTitle,
       sortByDate: this.sortByDate,
       logout: this.logout,
-      demo: this.plugin.opts.demo,
       isActiveRow: this.isActiveRow,
       isChecked: this.isChecked,
       toggleCheckbox: this.toggleCheckbox,

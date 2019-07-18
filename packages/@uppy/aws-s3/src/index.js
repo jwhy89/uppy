@@ -28,10 +28,12 @@ function assertServerError (res) {
 }
 
 module.exports = class AwsS3 extends Plugin {
+  static VERSION = require('../package.json').version
+
   constructor (uppy, opts) {
     super(uppy, opts)
     this.type = 'uploader'
-    this.id = 'AwsS3'
+    this.id = this.opts.id || 'AwsS3'
     this.title = 'AWS S3'
 
     this.defaultLocale = {
@@ -138,7 +140,7 @@ module.exports = class AwsS3 extends Plugin {
           method,
           formData: method.toLowerCase() === 'post',
           endpoint: url,
-          metaFields: Object.keys(fields)
+          metaFields: fields ? Object.keys(fields) : []
         }
 
         if (headers) {
@@ -169,7 +171,7 @@ module.exports = class AwsS3 extends Plugin {
     this.uppy.addPreProcessor(this.prepareUpload)
 
     let warnedSuccessActionStatus = false
-    this.uppy.use(XHRUpload, {
+    let xhrUploadOpts = {
       fieldName: 'file',
       responseUrlFieldName: 'location',
       timeout: this.opts.timeout,
@@ -225,7 +227,14 @@ module.exports = class AwsS3 extends Plugin {
         const error = getXmlValue(content, 'Message')
         return new Error(error)
       }
-    })
+    }
+
+    // Replace getResponseData() with overwritten version.
+    if (this.opts.getResponseData) {
+      xhrUploadOpts.getResponseData = this.opts.getResponseData
+    }
+
+    this.uppy.use(XHRUpload, xhrUploadOpts)
   }
 
   uninstall () {

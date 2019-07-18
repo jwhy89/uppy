@@ -5,6 +5,7 @@ title: "AWS S3"
 module: "@uppy/aws-s3"
 permalink: docs/aws-s3/
 category: 'Destinations'
+tagline: uploader for AWS S3
 ---
 
 The `@uppy/aws-s3` plugin can be used to upload files directly to an S3 bucket.
@@ -21,7 +22,7 @@ uppy.use(AwsS3, {
 })
 ```
 
-There are broadly two ways of uploading to S3 in a browser. A server can generate a presigned URL for a [PUT upload](https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html), or a server can generate form data for a [POST upload](https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPOST.html). Companion uses a POST upload. See [POST Uploads](#post-uploads) for some caveats if you would like to use POST uploads without Companion. See [Generating a presigned upload URL server-side](#example-presigned-url) for an example of a PUT upload.
+There are broadly two ways of uploading to S3 in a browser. A server can generate a presigned URL for a [PUT upload](https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html), or a server can generate form data for a [POST upload](https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPOST.html). Companion uses a POST upload. See [POST Uploads](#POST-uploads) for some caveats if you would like to use POST uploads without Companion. See [Generating a presigned upload URL server-side](#example-presigned-url) for an example of a PUT upload.
 
 There is also a separate plugin for S3 Multipart uploads. Multipart in this sense refers to Amazon's proprietary chunked, resumable upload mechanism for large files. See the [`@uppy/aws-s3-multipart`](/docs/aws-s3-multipart) documentation.
 
@@ -95,6 +96,14 @@ The default is 30 seconds.
 
 Limit the amount of uploads going on at the same time. This is passed through to [XHRUpload](/docs/xhrupload#limit-0); see its documentation page for details.
 Set to `0` to disable limiting.
+
+### `getResponseData(responseText, response)`
+
+> This is an advanced option intended for use with _almost_ S3-compatible storage solutions.
+
+Customize response handling once an upload is completed. This passes the function through to @uppy/xhr-upload, see its [documentation](https://uppy.io/docs/xhr-upload/#getResponseData-responseText-response) for API details.
+
+This option is useful when uploading to an S3-like service that doesn't reply with an XML document, but with something else such as JSON.
 
 ### `locale: {}`
 

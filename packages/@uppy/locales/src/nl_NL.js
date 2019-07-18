@@ -1,5 +1,3 @@
-/* eslint camelcase: 0 */
-
 const nl_NL = {}
 
 nl_NL.strings = {
@@ -7,7 +5,10 @@ nl_NL.strings = {
   addingMoreFiles: 'Bezig met extra bestanden toe te voegen',
   allowAccessDescription: 'Geef toestemming om foto\'s of videobeelden te kunnen maken.',
   allowAccessTitle: 'Geef toestemming om je camera te gebruiken',
+  authenticateWith: 'Verbinden met %{pluginName}',
+  authenticateWithTitle: 'Verbindt met %{pluginName} om bestanden te selecteren',
   back: 'Terug',
+  addMore: 'Meer toevoegen',
   browse: 'blader',
   cancel: 'Annuleer',
   cancelUpload: 'Annuleer upload',
@@ -56,6 +57,7 @@ nl_NL.strings = {
   import: 'Importeer',
   importFrom: 'Importeer vanuit %{name}',
   link: 'Link',
+  loading: 'Bezig met laden...',
   logOut: 'Uitloggen',
   myDevice: 'Mijn apparaat',
   noFilesFound: 'Geen bestanden of mappen gevonden',
@@ -63,6 +65,7 @@ nl_NL.strings = {
   pause: 'Pauze',
   pauseUpload: 'Pauzeer upload',
   paused: 'Gepauzeerd',
+  poweredBy: 'Mogelijk gemaakt door',
   preparingUpload: 'Upload voorbereiden...',
   processingXFiles: {
     '0': 'Bezig met %{smart_count} bestand te verwerken',
@@ -76,10 +79,10 @@ nl_NL.strings = {
   retry: 'Opnieuw',
   retryUpload: 'Upload opnieuw',
   saveChanges: 'Wijzigingen opslaan',
-  selectXFiles: {
-    '0': 'Selecteer %{smart_count} bestand',
-    '1': 'Selecteer %{smart_count} bestanden',
-    '2': 'Selecteer %{smart_count} bestanden'
+  selectX: {
+    '0': 'Selecteer %{smart_count}',
+    '1': 'Selecteer %{smart_count}',
+    '2': 'Selecteer %{smart_count}'
   },
   smile: 'Lach!',
   startRecording: 'Start video-opname',
@@ -116,7 +119,7 @@ nl_NL.strings = {
     '1': '%{smart_count} extra bestanden toegevoegd',
     '2': '%{smart_count} extra bestanden toegevoegd'
   },
-  xTimeLeft: '%{time} left',
+  xTimeLeft: '%{time} over',
   youCanOnlyUploadFileTypes: 'Je kan enkel volgende types uploaden: %{types}',
   youCanOnlyUploadX: {
     '0': 'Je kan slechts %{smart_count} bestand uploaden',
@@ -127,7 +130,12 @@ nl_NL.strings = {
     '0': 'Je moet minstens %{smart_count} bestand selecteren',
     '1': 'Je moet minstens %{smart_count} bestanden selecteren',
     '2': 'Je moet minstens %{smart_count} bestanden selecteren'
-  }
+  },
+  selectAllFilesFromFolderNamed: 'Selecteer alle bestanden uit de map %{name}',
+  unselectAllFilesFromFolderNamed: 'Deselecteer alle bestanden uit de map %{name}',
+  selectFileNamed: 'Selecteer bestand %{name}',
+  unselectFileNamed: 'Deselecteer bestand %{name}',
+  openFolderNamed: 'Open map %{name}'
 }
 
 nl_NL.pluralize = function (n) {

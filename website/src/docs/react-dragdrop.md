@@ -1,6 +1,7 @@
 ---
 title: "&lt;DragDrop />"
 type: docs
+module: "@uppy/react"
 permalink: docs/react/drag-drop/
 alias: docs/react/dragdrop/
 order: 2
@@ -18,7 +19,9 @@ npm install @uppy/react
 ```
 
 ```js
+// Either:
 import DragDrop from '@uppy/react/lib/DragDrop';
+// Or:
 import { DragDrop } from '@uppy/react';
 ```
 
